@@ -16,7 +16,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/morgan": "^1.9.10",
-    "@types/node": "^24.0.15",
+    "@types/node": "^24.6.2",
     "chokidar-cli": "^3.0.0",
     "ts-node-dev": "^2.0.0",
     "tsx": "^4.20.3",
