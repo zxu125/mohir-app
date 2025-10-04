@@ -31,7 +31,7 @@
     "prisma:clear": "node prisma/clear-schema.js",
     "watch:prisma": "nodemon --watch prisma/models --ext prisma --exec \"npm run prisma:build\"",
     "dev": "nodemon",
-    "build": "tsc && prisma generate",
-    "start": "npm run prisma:push && node dist/index.js"
+    "build": "tsc && npm run prisma:push && prisma generate",
+    "start": "node dist/index.js"
   }
 }
