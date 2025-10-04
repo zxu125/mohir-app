@@ -1,0 +1,21 @@
+model Location {
+    id          Int              @id @default(autoincrement()) @map("id")
+    latitude    Float            @map("latitude")
+    longtitude  Float            @map("longtitude")
+    createdAt   DateTime         @default(now()) @map("created_at")
+    updatedAt   DateTime         @updatedAt @map("updated_at")
+    clientLinks ClientLocation[]
+    orders      Order[]
+    stocks      Stock[]
+    @@map("location")
+}
+
+model ClientLocation {
+    clientId   Int
+    locationId Int
+
+    client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+    location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+    @@id([clientId, locationId]) // composite PK
+}

@@ -1,0 +1,7 @@
+{
+    "files.exclude": {
+      "**/prisma/models": true
+    },
+    "prisma.schemaPath": "prisma/schema.prisma" // на всякий случай
+  }
+  

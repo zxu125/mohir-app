@@ -1,0 +1,57 @@
+model User {
+  id         Int       @id @default(autoincrement()) @map("id")
+  email      String    @unique @map("email")
+  name       String?   @map("name")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  birth_date DateTime? @map("birth_date")
+  age        Int?      @map("age")
+  comments   Comment[]
+  posts      Post[]
+  UserPref   UserPref?
+  roleId     Int       @map("role_id") @default(1)
+
+  @@map("user")
+}
+
+model Post {
+  id         Int        @id @default(autoincrement()) @map("id")
+  title      String     @map("title")
+  content    String?    @map("content")
+  authorId   Int        @map("author_id")
+  createdAt  DateTime   @default(now()) @map("created_at")
+  categoryId Int?
+  comments   Comment[]
+  author     User       @relation(fields: [authorId], references: [id])
+  Category   Category[] @relation("CategoryPosts")
+
+  @@map("post")
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement()) @map("id")
+  message   String   @map("message")
+  postId    Int      @map("post_id")
+  authorId  Int      @map("author_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  author    User     @relation(fields: [authorId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id])
+
+  @@map("comment")
+}
+
+model UserPref {
+  id     Int  @id @default(autoincrement()) @map("id")
+  userId Int  @unique @map("user_id")
+  user   User @relation(fields: [userId], references: [id])
+
+  @@map("user_pref")
+}
+
+model Category {
+  id        Int      @id @default(autoincrement()) @map("id")
+  name      String   @unique @map("name")
+  createdAt DateTime @default(now()) @map("created_at")
+  posts     Post[]   @relation("CategoryPosts")
+
+  @@map("category")
+}

@@ -1,0 +1,11 @@
+model Courier {
+    id         Int        @id @default(autoincrement()) @map("id")
+    name       String     @map("name")
+    email      String     @unique @map("email")
+    phone      String?    @map("phone")
+    createdAt  DateTime   @default(now()) @map("created_at")
+    deliveries Delivery[]
+    regions    Region[]   @relation("CourierRegions")
+
+    @@map("courier")
+}

@@ -1,0 +1,8 @@
+model Region {
+    id        Int       @id @default(autoincrement()) @map("id")
+    name      String    @unique @map("name")
+    createdAt DateTime  @default(now()) @map("created_at")
+    couriers  Courier[] @relation("CourierRegions")
+
+    @@map("region")
+}

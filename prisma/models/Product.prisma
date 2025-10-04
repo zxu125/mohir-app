@@ -1,0 +1,14 @@
+
+model Product {
+    id          Int      @id @default(autoincrement()) @map("id")
+    name        String   @map("name")
+    description String?  @map("description")
+    price       Float    @map("price")
+    sku         String   @unique @map("sku")
+    createdAt   DateTime @default(now()) @map("created_at")
+    updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+    stocks      Stock[]
+
+    @@map("product")
+}

@@ -1,0 +1,11 @@
+model Delivery {
+    id           Int      @id @default(autoincrement()) @map("id")
+    orderId      Int      @map("order_id")
+    courierId    Int?      @map("courier_id")
+    deliveryDate DateTime @default(now()) @map("delivery_date")
+    status       String?   @map("status")
+    order        Order    @relation(fields: [orderId], references: [id])
+    courier      Courier?  @relation(fields: [courierId], references: [id])
+
+    @@map("delivery")
+}

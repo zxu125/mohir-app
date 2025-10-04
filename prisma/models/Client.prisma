@@ -1,0 +1,13 @@
+model Client {
+    id        Int      @id @default(autoincrement()) @map("id")
+    name      String   @map("name")
+    email     String   @unique @map("email")
+    phone     String?  @map("phone")
+    createdAt DateTime @default(now()) @map("created_at")
+    orders    Order[]
+    locations ClientLocation[]
+
+    stocks     Stock[]
+
+    @@map("client")
+}
