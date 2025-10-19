@@ -9,7 +9,7 @@ model Client {
     regionId  Int?
     region    Region? @relation(fields:[regionId], references: [id])
 
-    stocks     Stock[]
+    stocks     Stock[] 
 
     @@map("client")
 }
