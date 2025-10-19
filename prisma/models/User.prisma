@@ -1,14 +1,17 @@
 model User {
-  id         Int       @id @default(autoincrement()) @map("id")
-  email      String    @unique @map("email")
-  name       String?   @map("name")
-  createdAt  DateTime  @default(now()) @map("created_at")
-  birth_date DateTime? @map("birth_date")
-  age        Int?      @map("age")
-  comments   Comment[]
-  posts      Post[]
-  UserPref   UserPref?
-  roleId     Int       @map("role_id") @default(1)
+  id        Int       @id @default(autoincrement())
+  username  String    @unique
+  password  String
+  name      String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  regions   Region[]  @relation("UserRegions")
+  pushToken String?   @map("push_token")
+  comments  Comment[]
+  posts     Post[]
+  UserPref  UserPref?
+  roleId    Int       @default(1) @map("role_id")
 
   @@map("user")
 }

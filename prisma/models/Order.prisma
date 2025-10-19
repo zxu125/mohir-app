@@ -1,16 +1,18 @@
 model Order {
-    id          Int        @id @default(autoincrement()) @map("id")
-    clientId    Int        @map("client_id")
-    orderDate   DateTime   @default(now()) @map("order_date")
-    statusId    Int        @map("status_id") @default(1)
-    status      OrderStatus @relation(fields: [statusId], references: [id])
-    totalAmount Float      @map("total_amount")
-    client      Client     @relation(fields: [clientId], references: [id])
-    deliveryId  Int?       @map("delivery_id")
-    Delivery    Delivery[]
-    locationId  Int?       @map("location_id")
-    location    Location?  @relation(fields: [locationId], references: [id])
-
+    id            Int         @id @default(autoincrement()) @map("id")
+    clientId      Int         @map("client_id")
+    orderDate     DateTime    @default(now()) @map("order_date")
+    completedDate DateTime?   @map("completed_date")
+    statusId      Int         @default(1) @map("status_id")
+    status        OrderStatus @relation(fields: [statusId], references: [id])
+    totalAmount   Float       @map("total_amount")
+    client        Client      @relation(fields: [clientId], references: [id])
+    deliveryId    Int?        @map("delivery_id")
+    Delivery      Delivery[]
+    locationId    Int?        @map("location_id")
+    location      Location?   @relation(fields: [locationId], references: [id])
+    note          String?     
+    priority      Int?        @default(1)
     @@map("order")
 }
 
@@ -19,5 +21,6 @@ model OrderStatus {
     status    String   @unique @map("status")
     createdAt DateTime @default(now()) @map("created_at")
     orders    Order[]
+
     @@map("order_status")
 }

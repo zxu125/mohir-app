@@ -9,12 +9,13 @@ class OrderController {
             data: { statusId: Number(param.statusId) },
         });
     }
-    async completeOrder(param: { id: string; statusId: string, deliveryDate: string }) {
+    async completeOrder(param: { id: string, deliveryDate: string, countGotten: number, countGiven: number }) {
         return await prisma.order.update({
             where: { id: Number(param.id) },
             data: {
-                statusId: Number(param.statusId),
-                Delivery: { create: { deliveryDate: param.deliveryDate } }
+                statusId: Number(2),
+                Delivery: {
+                }
             },
             include: { Delivery: true }
         });

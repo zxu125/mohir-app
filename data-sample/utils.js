@@ -6,6 +6,6 @@ export function randomTashkentLocation() {
 
     return {
         latitude: +(Math.random() * (latMax - latMin) + latMin).toFixed(6),
-        longtitude: +(Math.random() * (lonMax - lonMin) + lonMin).toFixed(6),
+        longitude: +(Math.random() * (lonMax - lonMin) + lonMin).toFixed(6),
     };
 }

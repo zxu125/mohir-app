@@ -6,6 +6,8 @@ model Client {
     createdAt DateTime @default(now()) @map("created_at")
     orders    Order[]
     locations ClientLocation[]
+    regionId  Int?
+    region    Region? @relation(fields:[regionId], references: [id])
 
     stocks     Stock[]
 

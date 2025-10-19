@@ -1,7 +1,7 @@
 model Location {
     id          Int              @id @default(autoincrement()) @map("id")
     latitude    Float            @map("latitude")
-    longtitude  Float            @map("longtitude")
+    longitude  Float            @map("longitude")
     createdAt   DateTime         @default(now()) @map("created_at")
     updatedAt   DateTime         @updatedAt @map("updated_at")
     clientLinks ClientLocation[]

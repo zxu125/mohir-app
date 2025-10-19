@@ -24,7 +24,7 @@ async function main() {
         const location = await prisma.location.create({
             data: {
                 latitude: loc.latitude,
-                longtitude: loc.longtitude,
+                longitude: loc.longitude,
             },
         });
 

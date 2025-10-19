@@ -5,26 +5,54 @@ import { Router } from "express";
 
 const router = Router();
 
-router.get('/all', async (req, res) => {
+router.get('/all', async (req: any, res) => {
     const params = req.query;
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
     try {
         let allStocks = await prisma.stock.findMany({
             include: {
                 client: {
                     include: {
-                        orders: { include: { location: true, status: true } },
+                        orders: {
+                            where: {
+                                OR: [{
+                                    statusId: { notIn: [1, 2] }
+                                },
+                                {
+                                    completedDate: {
+                                        gte: startOfDay,
+                                        lte: endOfDay,
+                                    }
+                                }]
+                            },
+                            include: { location: true, status: true }
+                        },
                     }
 
                 }, product: true,
                 location: true,
-
             },
             where: {
                 client: {
-                    orders: params.has_orders == 'true' ? {
-                        some: {}
-                    } : undefined
-                }
+                    orders: {
+                        some: params.has_orders == 'true' ? {
+                            OR: [{
+                                statusId: { notIn: [1, 2] }
+                            },
+                            {
+                                completedDate: {
+                                    gte: startOfDay,
+                                    lte: endOfDay,
+                                }
+                            }]
+                        } : undefined,
+                    },
+                    region: req.user.role.id == 1 ? {} : { id: { in: req.user.regions.map(e => e.id) } }
+                },
             }
         });
         allStocks = allStocks.map(stock => ({
