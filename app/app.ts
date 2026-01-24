@@ -9,6 +9,7 @@ import orderRouter from './routes/order.js';
 import mapRouter from './routes/map.js';
 import regionRouter from './routes/region.js'
 import { authMiddleware } from './middleware/authMiddleware.js';
+import { InitWebSocket } from './ws/index.js';
 // import { errorHandler } from './middleware/error/index.js';
 
 dotenv.config();
@@ -32,5 +33,7 @@ app.use('/region', authMiddleware, regionRouter);
 app.use((req, res) => {
   res.status(404).json({ error: 'Not Found' });
 });
+
+InitWebSocket(process.env.WS_PORT || 8080);
 
 export default app;

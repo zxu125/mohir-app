@@ -11,6 +11,7 @@ const SECRET = process.env.JWT_SECRET || "super_secret";
 router.post("/login", async (req, res) => {
     const { username, password } = req.body;
     const user = await prisma.user.findUnique({ where: { username } });
+    console.log(user)
     if (!user || !user.isActive)
         return res.status(401).json({ message: "User not found or inactive" });
 

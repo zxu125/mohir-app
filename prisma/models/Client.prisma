@@ -1,15 +1,18 @@
 model Client {
-    id        Int      @id @default(autoincrement()) @map("id")
-    name      String   @map("name")
-    email     String   @unique @map("email")
-    phone     String?  @map("phone")
-    createdAt DateTime @default(now()) @map("created_at")
-    orders    Order[]
-    locations ClientLocation[]
-    regionId  Int?
-    region    Region? @relation(fields:[regionId], references: [id])
+    id           Int              @id @default(autoincrement()) @map("id")
+    name         String           @map("name")
+    email        String?          @map("email")
+    phone        String?          @map("phone")
+    phone2       String?          @map("phone2")
+    address      String?          @map("address")
+    deliveryNote String?          @map("delivery_note")
+    createdAt    DateTime         @default(now()) @map("created_at")
+    orders       Order[]
+    locations    ClientLocation[]
+    regionId     Int?
+    region       Region?          @relation(fields: [regionId], references: [id])
 
-    stocks     Stock[] 
+    stocks Stock[]
 
     @@map("client")
 }

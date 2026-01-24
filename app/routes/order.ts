@@ -3,6 +3,7 @@ import prisma from "../prismacl.js";
 import { Router } from "express";
 import OrderController from "../controllers/Order.js";
 import UserRoles from "../core/UserRoles.js";
+import { OrderStatus } from "../core/orderStatus.js";
 
 const router = Router();
 
@@ -24,7 +25,7 @@ router.get('/list', async (req, res) => {
     endOfDay.setHours(23, 59, 59, 999);
     const params = req.query;
     try {
-        const orders = await prisma.order.findMany({
+        const orders:any = await prisma.order.findMany({
             where: {
                 clientId: params.clientId ? Number(params.clientId) : undefined,
                 statusId: params.statusId ? Number(params.statusId) : undefined,
@@ -46,8 +47,42 @@ router.get('/list', async (req, res) => {
             },
             orderBy: { orderDate: "asc" }
         });
+        orders.forEach(order => {
+            order.status = OrderStatus.find(s => s.id === order.statusId);
+        });
         res.json(orders);
     } catch (error) {
+        console.log(error)
+        res.status(500).json({ error });
+    }
+});
+
+router.post('/history', async (req, res) => {
+    const { startDate, endDate, clientId, searchText } = req.body;
+    try {
+        const orders = await prisma.order.findMany({
+            where: {
+                clientId: clientId ? Number(clientId) : undefined,
+                orderDate: {
+                    gte: startDate ? new Date(startDate) : undefined,
+                    lte: endDate ? new Date(endDate) : undefined,
+                },
+                statusId: { in: [1, 2] },
+                OR: searchText ? [
+                    { note: { contains: searchText, mode: 'insensitive' } },
+                    { client: { name: { contains: searchText, mode: 'insensitive' } } },
+                ] : undefined,
+            },
+            include: {
+                client: { select: { id: true, name: true, email: true } },
+                location: true,
+                status: true,
+            },
+            orderBy: { completedDate: "desc" }
+        });
+        res.json(orders);
+    } catch (error) {
+        console.log(error)
         res.status(500).json({ error });
     }
 });
@@ -55,13 +90,14 @@ router.get('/list', async (req, res) => {
 // Create a new order
 router.post('/add', async (req, res) => {
     const { clientId, totalAmount, orderDate, note }: Order = req.body;
+    console.log(req.body);
     try {
         const client = await prisma.client.findUnique({
             where: { id: Number(clientId) },
             include: { locations: { include: { location: true } } },
         })
         const location = client!.locations[0]?.location
-        console.log(location);
+        console.log(1);
         const order = await prisma.order.create({
             data: {
                 clientId: Number(clientId),
@@ -72,6 +108,7 @@ router.post('/add', async (req, res) => {
                 note,
             },
         });
+        console.log(1);
         res.status(201).json(order);
     } catch (error) {
         res.status(500).json({ error });
@@ -81,22 +118,28 @@ router.post('/add', async (req, res) => {
 // Get an order by ID
 router.get('/view/:id', async (req, res) => {
     try {
-        const order = await prisma.order.findUnique({
+        console.log(req.body)
+        const order: any = await prisma.order.findUnique({
             where: { id: Number(req.params.id) },
-            include: { client: true, location: true, status: true, Delivery: true },
+            include: { client: { include: { region: true } }, location: true, Delivery: true },
         });
         if (!order) {
             return res.status(404).json({ error: 'Order not found', id: req.params.id });
         }
+        order.status = OrderStatus.find(s => s.id === order.statusId);
+        order.delivery = order.Delivery[0]
+        order.Delivery = undefined
         res.json(order);
     } catch (error) {
+        console.log(error)
         res.status(500).json({ error });
     }
 });
 
 // Update an order by ID
 router.post('/edit', async (req, res) => {
-    const { id, totalAmount, orderDate, note } = req.body;
+    const { id, totalAmount, orderDate, note, priority } = req.body;
+    console.log(req.body);
     try {
         const order = await prisma.order.update({
             where: { id: Number(id) },
@@ -104,7 +147,8 @@ router.post('/edit', async (req, res) => {
                 totalAmount: Number(totalAmount),
                 orderDate,
                 note,
-                locationId: req.body.location?.id
+                locationId: req.body.location?.id,
+                priority: priority.id,
             },
         });
         res.json(order);

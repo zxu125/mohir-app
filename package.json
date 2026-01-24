@@ -6,6 +6,7 @@
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
+    "cowsay": "^1.6.0",
     "dotenv": "^17.2.0",
     "expo-server-sdk": "^4.0.0",
     "express": "^5.1.0",
@@ -13,7 +14,8 @@
     "morgan": "^1.10.1",
     "nodemon": "^3.1.10",
     "prisma": "^6.12.0",
-    "react-native-maps-clustering": "^1.2.4"
+    "react-native-maps-clustering": "^1.2.4",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

@@ -6,7 +6,7 @@ const Admin = {
     description: 'Administrator with full access',
 }
 
-const Kourier = { 
+const Kourier = {
     id: 2,
     name: 'Kourier',
     key: 'kourier',
@@ -17,9 +17,10 @@ const Kourier = {
         canViewOrders: true,
         canManageUsers: false,
     },
-    routes:{
-        'orders':['list', 'view', 'complete-order'],
-        'map':['all']
+    routes: {
+        'orders': ['list', 'view', 'complete-order'],
+        'map': ['all'],
+        'clients': ['list', 'view'],
     }
 }
 

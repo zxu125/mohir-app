@@ -1,8 +1,11 @@
 model Courier {
-    id         Int        @id @default(autoincrement()) @map("id")
-    name       String     @map("name")
-    createdAt  DateTime   @default(now()) @map("created_at")
-    deliveries Delivery[]
+    id          Int        @id @default(autoincrement()) @map("id")
+    name        String     @map("name")
+    createdAt   DateTime   @default(now()) @map("created_at")
+    deliveries  Delivery[]
+    lastUpdate  DateTime?   @updatedAt @map("last_updated")
+    lastLat     Float?     @map("last_lat")
+    lastLng     Float?     @map("last_lng")
 
     @@map("courier")
 }

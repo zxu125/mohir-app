@@ -1,4 +1,5 @@
 
+import { OrderStatus } from "../core/orderStatus.js";
 import prisma from "../prismacl.js";
 
 import { Router } from "express";
@@ -29,7 +30,8 @@ router.get('/all', async (req: any, res) => {
                                     }
                                 }]
                             },
-                            include: { location: true, status: true }
+                            include: { location: true, status: true },
+                            orderBy: {completedDate: 'desc' },
                         },
                     }
 
@@ -61,11 +63,22 @@ router.get('/all', async (req: any, res) => {
                 ((o) => {
                     return {
                         ...o,
-                        status: o.status.status,
+                        status: OrderStatus.find(s => s.id == o.statusId),
                     }
                 })(stock.client.orders[0]) : null
         }));
         res.json(allStocks);
+    } catch (error) {
+        res.status(500).json({ error });
+    }
+});
+
+router.get('/couriers', async (req: any, res) => {
+    try {
+        const couriers = await prisma.courier.findMany({
+            //where: req.user.role.id == 1 ? {} : { regions: { some: { id: { in: req.user.regions.map((e: any) => e.id) } } } }
+        });
+        res.json(couriers);
     } catch (error) {
         res.status(500).json({ error });
     }
