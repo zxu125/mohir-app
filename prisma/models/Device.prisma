@@ -1,0 +1,25 @@
+enum DevicePlatform {
+    ios
+    android
+}
+
+model Device {
+    id        Int            @id @default(autoincrement())
+    installId String         @unique @map("install_id")
+    platform  DevicePlatform @map("platform")
+
+    deviceName String? @map("device_name")
+    osVersion  String? @map("os_version")
+    appVersion String? @map("app_version")
+
+    lastSeenAt DateTime? @map("last_seen_at")
+    createdAt  DateTime  @default(now()) @map("created_at")
+    updatedAt  DateTime  @updatedAt @map("updated_at")
+
+    sessions   RefreshTokens[]
+    pushTokens PushToken[]
+    deliveries NotificationDelivery[]
+
+    @@index([platform])
+    @@map("device")
+}

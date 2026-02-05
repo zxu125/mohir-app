@@ -66,13 +66,16 @@ router.get('/view', async (req: any, res) => {
         id: Number(req.query.id),
         regionId: req.user.role.id == 1 ? undefined : { in: req.user.regions.map((e: any) => e.id) }
       },
-      include: { locations: { include: { location: true } } }
+      include: { locations: { include: { location: true } }, stocks: true, region: true }
     });
     if (!client) {
       return res.status(404).json({ error: 'Client not found' });
     }
     client.location = client.locations[0]?.location
     client.locations = undefined
+    client.stock = client.stocks[0]
+    client.stocks = undefined
+
     client.order = (await prisma.order.findMany({
       where: { clientId: client.id },
       orderBy: { createdAt: 'desc' },
@@ -105,6 +108,31 @@ router.post('/edit', async (req, res) => {
     client = await prisma.client.findUnique({ where: { id: client.id }, include: { locations: { include: { location: true } }, region: true } })
     client.location = client.locations[0].location
     console.log(client);
+    if(req.body.stockQuantity){
+      let stock = await prisma.stock.findFirst({
+        where: {
+          clientId: client.id,
+          locationId: client.locations[0].locationId,
+          productId: 1
+        }
+      });
+      if(stock){
+        stock =  await prisma.stock.update({
+          where: { id: stock.id },
+          data: { quantity: Number(req.body.stockQuantity) }
+        });
+      } else {
+        stock = await prisma.stock.create({
+          data: {
+            clientId: client.id,
+            locationId: client.locations[0].locationId,
+            productId: 1,
+            quantity: Number(req.body.stockQuantity)
+          }
+        });
+      }
+      client.stock = stock;
+    }
     res.json(client);
   } catch (error) {
     res.status(500).json({ error });

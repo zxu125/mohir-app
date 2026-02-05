@@ -7,6 +7,7 @@ import authRouter from './routes/auth.js';
 import authRefreshRouter from './routes/auth-refresh.js';
 import clientRouter from './routes/client.js';
 import orderRouter from './routes/order.js';
+import notificationRoute from './routes/notifications.js';
 import mapRouter from './routes/map.js';
 import regionRouter from './routes/region.js'
 import { authMiddleware } from './middleware/authMiddleware.js';
@@ -32,6 +33,7 @@ app.use('/user', authRefreshMV, userRouter);
 app.use('/orders', authRefreshMV, orderRouter);
 app.use('/map', authRefreshMV, mapRouter);
 app.use('/region', authRefreshMV, regionRouter);
+app.use('/notifications', authRefreshMV, notificationRoute);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Not Found' });

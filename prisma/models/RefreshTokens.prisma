@@ -1,13 +1,36 @@
 model RefreshTokens {
-    id        String   @unique
-    tokenHash String   @map("token_hash")
-    revoked   Boolean  @default(false)
-    expiresAt BigInt   @map("expires_at")
-    userId    Int
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  id            String    @id @default(cuid()) // лучше сделать id PK
+  tokenHash     String    @map("token_hash")
 
-    user User @relation(fields: [userId], references: [id])
+  revoked       Boolean   @default(false)
+  revokedAt     DateTime? @map("revoked_at")
 
-    @@map("refresh_tokens")
+  // если оставляешь BigInt: храни unix ms/seconds по одному стандарту
+  expiresAt     BigInt    @map("expires_at")
+
+  // связь "какой пользователь на каком устройстве"
+  userId        Int       @map("user_id")
+  deviceId      Int       @map("device_id")
+
+  // мета (удобно для “активные устройства”, безопасность)
+  ip            String?   
+  userAgent     String?   @map("user_agent")
+  lastUsedAt    DateTime? @map("last_used_at")
+  issuedAt      DateTime  @default(now()) @map("issued_at")
+
+  // для rotate refresh (опционально, но полезно)
+  replacedById  String?   @map("replaced_by_id")
+
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  user          User      @relation(fields: [userId], references: [id])
+  device        Device   @relation(fields: [deviceId], references: [id])
+
+  @@index([userId])
+  @@index([deviceId])
+  @@index([expiresAt])
+  @@index([revoked])
+
+  @@map("refresh_tokens")
 }

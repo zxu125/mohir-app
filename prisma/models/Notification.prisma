@@ -1,0 +1,77 @@
+enum PushTokenStatus {
+    active
+    disabled
+    rotated
+}
+
+model PushToken {
+    id        Int             @id @default(autoincrement())
+    deviceId  Int             @map("device_id")
+    expoToken String          @unique @map("expo_token")
+    status    PushTokenStatus @default(active)
+
+    lastSeenAt    DateTime? @map("last_seen_at")
+    disabledAt    DateTime? @map("disabled_at")
+    disableReason String?   @map("disable_reason")
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    device Device @relation(fields: [deviceId], references: [id])
+
+    deliveries NotificationDelivery[]
+
+    @@index([deviceId])
+    @@index([status])
+    @@map("push_token")
+}
+
+model Notification {
+    id        Int      @id @default(autoincrement())
+    userId    Int      @map("user_id")
+    title     String?
+    body      String
+    data      Json     @default("{}")
+    createdAt DateTime @default(now()) @map("created_at")
+
+    user       User                   @relation(fields: [userId], references: [id])
+    deliveries NotificationDelivery[]
+
+    @@index([userId])
+    @@map("notification")
+}
+
+enum DeliveryStatus {
+    pending
+    sent
+    delivered
+    failed
+}
+
+model NotificationDelivery {
+    id Int @id @default(autoincrement())
+
+    notificationId Int @map("notification_id")
+    deviceId       Int @map("device_id")
+    pushTokenId    Int @map("push_token_id")
+
+    status DeliveryStatus @default(pending)
+
+    expoTicketId  String? @map("expo_ticket_id")
+    expoReceiptId String? @map("expo_receipt_id")
+
+    errorCode    String? @map("error_code")
+    errorMessage String? @map("error_message")
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+    device       Device       @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+    pushToken    PushToken    @relation(fields: [pushTokenId], references: [id], onDelete: Cascade)
+
+    @@index([status])
+    @@index([deviceId])
+    @@index([notificationId])
+    @@map("notification_deliverie")
+}

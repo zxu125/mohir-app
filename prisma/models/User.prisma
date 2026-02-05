@@ -2,7 +2,7 @@ model User {
   id        Int       @id @default(autoincrement())
   username  String    @unique
   password  String
-  phone     String?   
+  phone     String?
   name      String?
   isActive  Boolean   @default(true)
   createdAt DateTime  @default(now())
@@ -15,6 +15,7 @@ model User {
   roleId    Int       @default(1) @map("role_id")
 
   refreshTokens RefreshTokens[]
+  notifications Notification[]
 
   @@map("user")
 }

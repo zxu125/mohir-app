@@ -10,37 +10,95 @@ import { signAccessToken, signRefreshToken, verifyRefresh } from "../helpers/tok
 const router = express.Router();
 const SECRET = process.env.JWT_SECRET || "super_secret";
 
-// LOGIN: выдаём access + refresh 
+const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30d bigint (ms)
+
 router.post("/login", async (req, res) => {
-    const { username, password } = req.body || {};
+    const parsed = req.body;
+
+    const { username, password, installId, device } = parsed;
+
     const user = await prisma.user.findUnique({ where: { username } });
     if (!user) return res.status(401).json({ message: "Bad credentials" });
 
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) return res.status(401).json({ message: "Bad credentials" });
 
+    // 1) upsert device
+    const now = new Date();
+    const dbDevice = await prisma.device.upsert({
+        where: { installId },
+        create: {
+            installId,
+            platform: device?.platform ?? "android", // лучше требовать device.platform всегда
+            deviceName: device?.deviceName ?? null,
+            osVersion: device?.osVersion ?? null,
+            appVersion: device?.appVersion ?? null,
+            lastSeenAt: now,
+        },
+        update: {
+            platform: device?.platform ?? undefined,
+            deviceName: device?.deviceName ?? undefined,
+            osVersion: device?.osVersion ?? undefined,
+            appVersion: device?.appVersion ?? undefined,
+            lastSeenAt: now,
+        },
+        select: { id: true, installId: true, platform: true },
+    });
+
+    // 2) (опционально) если хочешь: "1 активная сессия на девайс"
+    // тогда перед созданием новой — ревокнем старые активные:
+    await prisma.refreshTokens.updateMany({
+        where: {
+            userId: user.id,
+            deviceId: dbDevice.id,
+            revoked: false,
+            expiresAt: { gt: BigInt(Date.now()) },
+        },
+        data: {
+            revoked: true,
+            revokedAt: now,
+        },
+    });
+
+    // 3) токены
     const accessToken = signAccessToken(user);
 
     const tokenId = crypto.randomUUID();
     const refreshToken = signRefreshToken(user, tokenId);
 
+    // важный момент:
+    // bcrypt(refreshToken) ок, но можно быстрее: hash(refreshToken) sha256
     const tokenHash = await bcrypt.hash(refreshToken, 10);
-    const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000; // 30d (синхронизируй с REFRESH_TOKEN_TTL)
 
+    const expiresAt = Date.now() + REFRESH_TTL_MS;
+
+    // 4) сессия (refresh_tokens)
     await prisma.refreshTokens.create({
         data: {
-            id: tokenId.toString(),
+            id: tokenId,
             userId: user.id,
+            deviceId: dbDevice.id,
             tokenHash,
             revoked: false,
-            expiresAt
-        }
+            revokedAt: null,
+            expiresAt,
+
+            ip: (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ?? req.ip,
+            userAgent: req.headers["user-agent"] ?? null,
+            issuedAt: now,
+            lastUsedAt: now,
+        },
     });
 
-    return res.json({ accessToken, refreshToken, user: { id: user.id, username: user.username, name: user.name } });
+    return res.json({
+        accessToken,
+        refreshToken,
+        user: { id: user.id, username: user.username, name: user.name },
+        device: { id: dbDevice.id, installId: dbDevice.installId, platform: dbDevice.platform },
+    });
 });
 
-// REFRESH: проверяем refresh, сверяем с БД, делаем ротацию
+
 router.post("/refresh", async (req, res) => {
     const { refreshToken } = req.body || {};
     if (!refreshToken) return res.status(400).json({ message: "refreshToken required" });
@@ -89,6 +147,7 @@ router.post("/refresh", async (req, res) => {
             id: newTid,
             userId,
             tokenHash: newHash,
+            deviceId: stored.deviceId,
             revoked: false,
             expiresAt: newExpiresAt,
         }
@@ -97,7 +156,6 @@ router.post("/refresh", async (req, res) => {
     return res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
 });
 
-// LOGOUT: отзываем refresh токен
 router.post("/logout", async (req, res) => {
     const { refreshToken } = req.body || {};
     if (!refreshToken) return res.status(400).json({ message: "refreshToken required" });
