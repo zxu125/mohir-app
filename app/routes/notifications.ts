@@ -24,7 +24,7 @@ router.post("/send-to-user", async (req, res) => {
 });
 
 // 2) тест: отправить пуш “мне”
-router.post("/send-test-to-me", async (req, res) => {
+router.post("/send-test-to-me", async (req, res) => { 
     const userId = (req as any).user.id as number;
     const body = typeof req.body?.body === "string" ? req.body.body : "Test push";
     const title = typeof req.body?.title === "string" ? req.body.title : "Test";
