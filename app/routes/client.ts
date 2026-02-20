@@ -6,10 +6,10 @@ const router = Router();
 
 // Create a new client
 router.post('/add', async (req, res) => {
-  const { name, email, phone, phone2, regionId, address, deliveryNote, locations } = req.body;
+  const { name, email, phone, phone2, regionId, address, deliveryNote, locations, totalAmount } = req.body;
   console.log('Create client request body:', req.body);
-  if(!name || !locations || locations.length == 0) {
-    return res.status(400).json({ error: 'Необходимы имя и регион клиента' });
+  if (!name || !locations || locations.length == 0 || locations.some((loc: any) => !loc?.latitude || !loc?.longitude)) {
+    return res.status(400).json({ error: 'Необходимы имя и локация клиента' });
   }
   try {
     const existing = await prisma.client.findFirst({
@@ -45,7 +45,7 @@ router.post('/add', async (req, res) => {
           data: locations.map((loc: any) => ({
             clientId: client.id,
             locationId: loc.id,
-            quantity: 0,
+            quantity: totalAmount ? Number(totalAmount) : 0,
             productId: 1
           }))
         });
@@ -77,7 +77,7 @@ router.get('/view', async (req: any, res) => {
     client.stocks = undefined
 
     client.order = (await prisma.order.findMany({
-      where: { clientId: client.id },
+      where: { clientId: client.id, statusId: { notIn: [1, 2] } },
       orderBy: { createdAt: 'desc' },
       take: 1,
     }))[0]
@@ -108,7 +108,7 @@ router.post('/edit', async (req, res) => {
     client = await prisma.client.findUnique({ where: { id: client.id }, include: { locations: { include: { location: true } }, region: true } })
     client.location = client.locations[0].location
     console.log(client);
-    if(req.body.stockQuantity){
+    if (req.body.stockQuantity) {
       let stock = await prisma.stock.findFirst({
         where: {
           clientId: client.id,
@@ -116,8 +116,8 @@ router.post('/edit', async (req, res) => {
           productId: 1
         }
       });
-      if(stock){
-        stock =  await prisma.stock.update({
+      if (stock) {
+        stock = await prisma.stock.update({
           where: { id: stock.id },
           data: { quantity: Number(req.body.stockQuantity) }
         });
@@ -141,7 +141,7 @@ router.post('/edit', async (req, res) => {
 
 router.get('/list', async (req: any, res) => {
   const params = req.query;
-  let fileds = params.flds ? String(params.flds).split(',') : ['id', 'name', 'email', 'phone', 'location', 'region', 'address', 'deliveryNote'];
+  let fileds = params.flds ? String(params.flds).split(',') : ['id', 'order', 'name', 'email', 'phone', 'phone2', 'location', 'region', 'address', 'deliveryNote'];
   console.log('Listing clients with params:', params);
   try {
     let clients: any = await prisma.client.findMany({
@@ -159,17 +159,21 @@ router.get('/list', async (req: any, res) => {
         name: fileds.includes('name'),
         email: fileds.includes('email'),
         phone: fileds.includes('phone'),
+        phone2: fileds.includes('phone2'),
         region: fileds.includes('region'),
         deliveryNote: fileds.includes('deliveryNote'),
         address: fileds.includes('address'),
+        orders: fileds.includes('order') ? { where: { statusId: { notIn: [1, 2] } }, select: { id: true, totalAmount: true, note: true } } : false,
         locations: fileds.includes('location') ? { include: { location: true } } : false,
       },
+      orderBy: { name: 'asc' }
     });
     clients = clients.map((client: any) => {
       if (client.locations && client.locations.length) {
         client.location = client.locations[0].location;
       }
       client.locations = undefined;
+      client.order = client.orders ? client.orders[0] : undefined;
       return client;
     });
     res.json(clients);

@@ -13,6 +13,7 @@ model User {
   posts     Post[]
   UserPref  UserPref?
   roleId    Int       @default(1) @map("role_id")
+  orders    Order[]
 
   refreshTokens RefreshTokens[]
   notifications Notification[]

@@ -8,6 +8,7 @@ model Order {
     statusId      Int         @default(1) @map("status_id")
     status        OrderStatus @relation(fields: [statusId], references: [id])
     totalAmount   Float       @map("total_amount")
+    price         Float       @default(0) @map("price")
     client        Client      @relation(fields: [clientId], references: [id])
     deliveryId    Int?        @map("delivery_id")
     Delivery      Delivery[]
@@ -15,6 +16,10 @@ model Order {
     location      Location?   @relation(fields: [locationId], references: [id])
     note          String?
     priority      Int?        @default(1)
+    countGivenn   Int?        @default(0) @map("count_given")
+    countGotten   Int?        @default(0) @map("count_gotten")
+    userId        Int?        @map("user_id")
+    user          User?       @relation(fields: [userId], references: [id])
 
     @@map("order")
 }

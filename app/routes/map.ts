@@ -18,6 +18,7 @@ router.get('/all', async (req: any, res) => {
             include: {
                 client: {
                     include: {
+                        region: true,
                         orders: {
                             where: {
                                 OR: [{

@@ -5,17 +5,59 @@ import jwt from "jsonwebtoken";
 import UserRoles from "../core/UserRoles.js";
 import express from "express";
 import crypto from "crypto";
-import { signAccessToken, signRefreshToken, verifyRefresh } from "../helpers/tokens.js";
+import { signAccessToken, signRefreshToken, verifyRefresh, verifyTelegramInitData, parseInitData } from "../helpers/tokens.js";
 
 const router = express.Router();
 const SECRET = process.env.JWT_SECRET || "super_secret";
 
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30d bigint (ms)
 
+const BOT_TOKEN = process.env.BOT_TOKEN; // токен бота BotFather
+
+router.post("/tg/handshake", async (req, res) => {
+    const { initData } = req.body || {};
+    if (!initData) return res.status(400).json({ message: "initData required" });
+    if (!BOT_TOKEN) return res.status(500).json({ message: "BOT_TOKEN missing" });
+    const ok = verifyTelegramInitData(initData, BOT_TOKEN);
+    if (!ok) return res.status(401).json({ message: "Bad initData signature" });
+
+    const { user, authDate } = parseInitData(initData);
+    if (!user?.id) return res.status(400).json({ message: "No user in initData" });
+
+    // auth_date в секундах
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (!authDate || nowSec - authDate > 24 * 60 * 60) {
+        return res.status(401).json({ message: "initData too old" });
+    }
+
+    // Сделаем короткий "tgSession" JWT на 3-5 минут (отдельный секрет можно)
+    const tgSession = jwt.sign(
+        { tg: String(user.id) },
+        SECRET,
+        { expiresIn: "5m" }
+    );
+
+    return res.json({ tgSession, tgUser: { id: user.id, first_name: user.first_name } });
+});
+
 router.post("/login", async (req, res) => {
     const parsed = req.body;
 
-    const { username, password, installId, device } = parsed;
+    const { username, password, installId, device, clientType = "mobile", tgSession } = parsed;
+
+    // 0) если telegram webapp — проверяем tgSession
+    let tgUserId = null;
+
+    if (clientType === "webapp_tg") {
+        if (!tgSession) return res.status(400).json({ message: "tgSession required" });
+
+        try {
+            const p = jwt.verify(tgSession, SECRET);
+            tgUserId = p.tg; // строка id
+        } catch {
+            return res.status(401).json({ message: "Bad tgSession" });
+        }
+    }
 
     const user = await prisma.user.findUnique({ where: { username } });
     if (!user) return res.status(401).json({ message: "Bad credentials" });
@@ -24,12 +66,19 @@ router.post("/login", async (req, res) => {
     if (!ok) return res.status(401).json({ message: "Bad credentials" });
 
     // 1) upsert device
+    const finalInstallId =
+        clientType === "webapp_tg"
+            ? `tg:${tgUserId}`         // или `tg:${tgUserId}:${someBrowserId}`
+            : installId;
+
+    if (!finalInstallId) return res.status(400).json({ message: "installId required" });
+
     const now = new Date();
     const dbDevice = await prisma.device.upsert({
-        where: { installId },
+        where: { installId: finalInstallId },
         create: {
-            installId,
-            platform: device?.platform ?? "android", // лучше требовать device.platform всегда
+            installId: finalInstallId,
+            platform: clientType === "webapp_tg" ? "tg_web" : (device?.platform ?? "android"),
             deviceName: device?.deviceName ?? null,
             osVersion: device?.osVersion ?? null,
             appVersion: device?.appVersion ?? null,
@@ -83,24 +132,41 @@ router.post("/login", async (req, res) => {
             revokedAt: null,
             expiresAt,
 
-            ip: (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ?? req.ip,
-            userAgent: req.headers["user-agent"] ?? null,
+            clientType,
+            tgUserId: tgUserId ? BigInt(tgUserId) : null,
+
             issuedAt: now,
             lastUsedAt: now,
         },
     });
 
-    return res.json({
-        accessToken,
-        refreshToken,
-        user: { id: user.id, username: user.username, name: user.name },
-        device: { id: dbDevice.id, installId: dbDevice.installId, platform: dbDevice.platform },
-    });
+    if (clientType === "webapp_tg") {
+        res.cookie("rt", refreshToken, {
+            httpOnly: true,
+            secure: true,    // на https
+            sameSite: "none", // раз у тебя тот же домен
+            path: "/auth",
+            maxAge: REFRESH_TTL_MS,
+        });
+
+        return res.json({
+            accessToken,
+            user: { id: user.id, username: user.username, name: user.name },
+            device: { id: dbDevice.id, installId: dbDevice.installId, platform: dbDevice.platform },
+        });
+    }
+
+    // mobile as is:
+    return res.json({ accessToken, refreshToken, user: { id: user.id, username: user.username, name: user.name }, device: { id: dbDevice.id, installId: dbDevice.installId, platform: dbDevice.platform } });
 });
 
 
 router.post("/refresh", async (req, res) => {
-    const { refreshToken } = req.body || {};
+    console.log('refresh', req.body, req.cookies);
+    const bodyToken = req.body?.refreshToken;
+    const cookieToken = req.cookies?.rt;
+    const refreshToken = bodyToken || cookieToken;
+
     if (!refreshToken) return res.status(400).json({ message: "refreshToken required" });
 
     let payload;
@@ -125,14 +191,6 @@ router.post("/refresh", async (req, res) => {
     // Ротация: старый refresh помечаем revoked, выдаём новый
     stored.revoked = true;
 
-    // await prisma.refreshTokens.update({
-    //     where: { id: stored.id },
-    //     data: { revoked: true }
-    // });
-    await prisma.refreshTokens.delete({
-        where: { id: stored.id }
-    });
-
     const newTid = crypto.randomUUID();
     const user = { id: userId };
 
@@ -141,6 +199,28 @@ router.post("/refresh", async (req, res) => {
 
     const newHash = await bcrypt.hash(newRefreshToken, 10);
     const newExpiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+
+    const now = new Date();
+
+    await prisma.refreshTokens.update({
+        where: { id: stored.id },
+        data: { revoked: true, revokedAt: now, replacedById: newTid, lastUsedAt: now },
+    });
+
+    await prisma.refreshTokens.create({
+        data: {
+            id: newTid,
+            userId,
+            tokenHash: newHash,
+            deviceId: stored.deviceId,
+            revoked: false,
+            expiresAt: BigInt(newExpiresAt),
+            clientType: stored.clientType,
+            tgUserId: stored.tgUserId,
+            issuedAt: now,
+            lastUsedAt: now,
+        }
+    });
 
     await prisma.refreshTokens.create({
         data: {
@@ -153,23 +233,36 @@ router.post("/refresh", async (req, res) => {
         }
     });
 
+    if (!bodyToken) {
+        res.cookie("rt", newRefreshToken, {
+            httpOnly: true,
+            secure: true,
+            sameSite: "lax",
+            path: "/auth",
+            maxAge: REFRESH_TTL_MS,
+        });
+        return res.json({ accessToken: newAccessToken });
+    }
+
     return res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
 });
 
 router.post("/logout", async (req, res) => {
-    const { refreshToken } = req.body || {};
-    if (!refreshToken) return res.status(400).json({ message: "refreshToken required" });
+    const token = req.body?.refreshToken || req.cookies?.rt;
+    if (!token) return res.json({ ok: true });
 
     try {
-        const payload = verifyRefresh(refreshToken);
-        const stored = await prisma.refreshTokens.findUnique({ where: { id: payload.tid } });
-        if (stored) stored.revoked = true;
-    } catch {
-        return res.json({ ok: true });
-    }
+        const payload = verifyRefresh(token);
+        await prisma.refreshTokens.update({
+            where: { id: payload.tid },
+            data: { revoked: true, revokedAt: new Date() },
+        });
+    } catch { }
 
+    res.clearCookie("rt", { path: "/auth" });
     return res.json({ ok: true });
 });
+
 
 router.get("/me", async (req, res) => {
     const authHeader = req.headers.authorization;
@@ -189,6 +282,6 @@ router.get("/me", async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     return res.json({ user });
-});
+})
 
 export default router;

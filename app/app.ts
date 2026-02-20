@@ -14,18 +14,21 @@ import { authMiddleware } from './middleware/authMiddleware.js';
 import { auth as authRefreshMV } from './middleware/authRefreshMW.js';
 import { InitWebSocket } from './ws/index.js';
 // import { errorHandler } from './middleware/error/index.js';
+import cookieParser from "cookie-parser";
 
 dotenv.config();
-
+express.json({ limit: "1mb" })
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 // app.use(morgan('dev'));
 // app.use(errorHandler)
 
 // app.use('/users', userRouter);
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/auth', authRefreshRouter);
 app.use('/auth-refresh', authRefreshRouter);
 app.use('/clients', authRefreshMV, clientRouter);

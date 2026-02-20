@@ -4,6 +4,8 @@ import { Router } from "express";
 import OrderController from "../controllers/Order.js";
 import UserRoles from "../core/UserRoles.js";
 import { OrderStatus } from "../core/orderStatus.js";
+import { count } from "console";
+import { tr } from "zod/v4/locales";
 
 const router = Router();
 
@@ -25,23 +27,14 @@ router.get('/list', async (req, res) => {
     endOfDay.setHours(23, 59, 59, 999);
     const params = req.query;
     try {
-        const orders:any = await prisma.order.findMany({
+        const orders: any = await prisma.order.findMany({
             where: {
                 clientId: params.clientId ? Number(params.clientId) : undefined,
-                statusId: params.statusId ? Number(params.statusId) : undefined,
+                statusId: { equals: params.statusId ? Number(params.statusId) : undefined, notIn: [1, 2] },
                 orderDate: params.orderDate ? new Date(String(params.orderDate)) : undefined,
-                OR: [{
-                    statusId: { notIn: [1, 2] }
-                },
-                {
-                    completedDate: {
-                        gte: startOfDay,
-                        lte: endOfDay,
-                    }
-                }]
             },
             include: {
-                client: { select: { id: true, name: true, email: true } },
+                client: { select: { id: true, name: true, email: true, phone: true, phone2: true } },
                 location: true,
                 status: true,
             },
@@ -58,16 +51,18 @@ router.get('/list', async (req, res) => {
 });
 
 router.post('/history', async (req, res) => {
-    const { startDate, endDate, clientId, searchText } = req.body;
+    const { startDate, endDate, clientId, searchText, userId, statusId } = req.body;
+    console.log(req.body);
     try {
         const orders = await prisma.order.findMany({
             where: {
                 clientId: clientId ? Number(clientId) : undefined,
+                userId: userId ? Number(userId) : undefined,
                 orderDate: {
                     gte: startDate ? new Date(startDate) : undefined,
                     lte: endDate ? new Date(endDate) : undefined,
                 },
-                statusId: { in: [1, 2] },
+                statusId: { in: [1, 2], equals: statusId ? Number(statusId) : undefined },
                 OR: searchText ? [
                     { note: { contains: searchText, mode: 'insensitive' } },
                     { client: { name: { contains: searchText, mode: 'insensitive' } } },
@@ -77,9 +72,14 @@ router.post('/history', async (req, res) => {
                 client: { select: { id: true, name: true, email: true } },
                 location: true,
                 status: true,
+                user: true,
             },
             orderBy: { completedDate: "desc" }
         });
+        orders.forEach((order: any) => {
+            order.status = OrderStatus.find(s => s.id === order.statusId);
+        });
+        console.log(orders);
         res.json(orders);
     } catch (error) {
         console.log(error)
@@ -89,8 +89,8 @@ router.post('/history', async (req, res) => {
 
 // Create a new order
 router.post('/add', async (req, res) => {
-    const { clientId, totalAmount, orderDate, note }: Order = req.body;
-    console.log(req.body);
+    console.log('add: ', req.body);
+    const { clientId, totalAmount, orderDate, note } = req.body;
     try {
         const client = await prisma.client.findUnique({
             where: { id: Number(clientId) },
@@ -98,6 +98,7 @@ router.post('/add', async (req, res) => {
         })
         const location = client!.locations[0]?.location
         console.log(1);
+        const price = await prisma.product.findUnique({ where: { id: 1 } }).then(p => p?.price || 0)
         const order = await prisma.order.create({
             data: {
                 clientId: Number(clientId),
@@ -106,6 +107,7 @@ router.post('/add', async (req, res) => {
                 orderDate,
                 statusId: 5,
                 note,
+                price: Number(totalAmount) * price,
             },
         });
         console.log(1);
@@ -117,18 +119,22 @@ router.post('/add', async (req, res) => {
 
 // Get an order by ID
 router.get('/view/:id', async (req, res) => {
+    console.log(req.cookies)
     try {
         console.log(req.body)
+        const price = await prisma.product.findUnique({ where: { id: 1 } }).then(p => p?.price || 0)
         const order: any = await prisma.order.findUnique({
             where: { id: Number(req.params.id) },
-            include: { client: { include: { region: true } }, location: true, Delivery: true },
+            include: { user: true, client: { include: { region: true, stocks: true } }, location: true },
         });
         if (!order) {
             return res.status(404).json({ error: 'Order not found', id: req.params.id });
         }
         order.status = OrderStatus.find(s => s.id === order.statusId);
-        order.delivery = order.Delivery[0]
+        order.delivery = { countGiven: order.countGivenn, countGotten: order.countGotten, note: order.note, completedDate: order.completedDate }
         order.Delivery = undefined
+        order.productPrice = price
+        order.currentStock = order.client?.stocks?.[0]?.quantity || 0
         res.json(order);
     } catch (error) {
         console.log(error)
@@ -139,8 +145,9 @@ router.get('/view/:id', async (req, res) => {
 // Update an order by ID
 router.post('/edit', async (req, res) => {
     const { id, totalAmount, orderDate, note, priority } = req.body;
-    console.log(req.body);
+    console.log('edit ', req.body);
     try {
+        const price = await prisma.product.findUnique({ where: { id: 1 } }).then(p => p?.price || 0)
         const order = await prisma.order.update({
             where: { id: Number(id) },
             data: {
@@ -148,7 +155,8 @@ router.post('/edit', async (req, res) => {
                 orderDate,
                 note,
                 locationId: req.body.location?.id,
-                priority: priority.id,
+                // priority: priority.id,
+                price: Number(totalAmount) * price,
             },
         });
         res.json(order);
@@ -182,7 +190,8 @@ router.post('/change-status', async (req, res) => {
 
 router.post('/complete-order', async (req, res) => {
     const { id, countGotten, countGiven, note } = req.body;
-    const order: any = await prisma.order.findUnique({ where: { id } })
+    console.log(req.body)
+    const order: any = await prisma.order.findUnique({ where: { id: Number(id) } })
     if ([1, 2].includes(order.statusId)) {
         res.status(500).json({ message: 'Нельзя подтвердить' });
     }
@@ -193,13 +202,9 @@ router.post('/complete-order', async (req, res) => {
                 data: {
                     statusId: 2,
                     completedDate: new Date(),
-                    Delivery: {
-                        create: {
-                            countGotten: Number(countGotten),
-                            countGiven: Number(countGiven),
-                            note,
-                        },
-                    },
+                    userId: (req as any).user?.id,
+                    countGivenn: Number(countGiven),
+                    countGotten: Number(countGotten),
                 },
                 include: {
                     client: {
@@ -236,14 +241,14 @@ router.post('/complete-order', async (req, res) => {
 
 router.post('/cancel-order', async (req, res) => {
     const { id, note } = req.body;
-    let order: any = await prisma.order.findUnique({ where: { id } })
+    let order: any = await prisma.order.findUnique({ where: { id: Number(id) } })
     if ([1, 2].includes(order.statusId)) {
         res.status(500).json({ message: 'Нельзя подтвердить' });
     }
     try {
         order = await prisma.order.update({
-            where: { id },
-            data: { statusId: 1, note, completedDate: new Date() }
+            where: { id: Number(id) },
+            data: { statusId: 1, note, completedDate: new Date(), userId: (req as any).user?.id },
         })
         res.json(order)
     } catch (err) {

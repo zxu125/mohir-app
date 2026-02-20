@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { sendPushToUser } from "../helpers/expoPush";
+import { sendPushToUser } from "../helpers/expoPush.js";
 
 const router = Router();
 

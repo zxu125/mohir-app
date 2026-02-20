@@ -3,6 +3,7 @@ import prisma from '../prismacl.js';
 import bcrypt from 'bcryptjs'
 import { PrismaClientValidationError } from '@prisma/client/runtime/library.js';
 import { PushTokenStatus } from "@prisma/client";
+import UserRoles from '../core/UserRoles.js';
 
 const router = Router();
 
@@ -14,6 +15,7 @@ router.get('/list', async (req, res) => {
                 regions: true,
                 createdAt: true, updatedAt: true
             },
+            orderBy: { name: 'desc' }
         });
         res.json(users);
     } catch (err) {
@@ -24,8 +26,8 @@ router.get('/list', async (req, res) => {
 
 router.post('/add', async (req, res) => {
     try {
-        const { username, password, name, phone, regionIds } = req.body;
-        console.log(regionIds)
+        const { username, password, name, phone, regionIds, roleId } = req.body;
+        console.log(req.body)
         // return res.status(500).json({ error: 'Регистрация отключена' });
         if (!username || !password || !name) {
             return res.status(400).json({ error: 'Missing required fields' });
@@ -51,14 +53,16 @@ router.post('/add', async (req, res) => {
 
 router.get('/view', async (req, res) => {
     try {
-        const user = await prisma.user.findUnique({
+        const user: any = await prisma.user.findUnique({
             where: { id: Number(req.query.id) },
             select: {
                 username: true, name: true, id: true, phone: true,
                 regions: true,
-                createdAt: true, updatedAt: true
+                createdAt: true, updatedAt: true,
+                roleId: true,
             },
         })
+        user!.role = UserRoles.find(r => r.id == user.roleId) || null;
         res.json(user);
     }
     catch (err) {
@@ -69,7 +73,7 @@ router.get('/view', async (req, res) => {
 router.post('/edit', async (req, res) => {
     console.log('Edit user request body:', req.body);
     try {
-        const { name, password, username, id, phone } = req.body;
+        const { name, password, username, id, phone, roleId } = req.body;
         const existingUser = username ? await prisma.user.findUnique({
             where: { username }
         }) : null;
@@ -81,6 +85,7 @@ router.post('/edit', async (req, res) => {
             data: {
                 name,
                 username,
+                roleId,
                 phone,
                 password: password ? bcrypt.hashSync(password) : undefined,
                 regions: req.body.regionIds ? { set: req.body.regionIds.map(r => ({ id: r })) } : undefined
@@ -223,5 +228,9 @@ router.post('/register-device', async (req, res) => {
         tokenAction: result.tokenAction,
     });
 });
+
+router.get('/roles', async (req, res) => {
+    res.json(UserRoles);
+})
 
 export default router;

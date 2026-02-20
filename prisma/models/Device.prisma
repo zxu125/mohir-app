@@ -1,6 +1,7 @@
 enum DevicePlatform {
     ios
     android
+    tg_web
 }
 
 model Device {
