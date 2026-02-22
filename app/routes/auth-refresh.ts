@@ -160,7 +160,6 @@ router.post("/login", async (req, res) => {
     return res.json({ accessToken, refreshToken, user: { id: user.id, username: user.username, name: user.name }, device: { id: dbDevice.id, installId: dbDevice.installId, platform: dbDevice.platform } });
 });
 
-
 router.post("/refresh", async (req, res) => {
     console.log('refresh', req.body, req.cookies);
     const bodyToken = req.body?.refreshToken;

@@ -10,6 +10,7 @@ import orderRouter from './routes/order.js';
 import notificationRoute from './routes/notifications.js';
 import mapRouter from './routes/map.js';
 import regionRouter from './routes/region.js'
+import tgBotRouter from './routes/tg-bot.js';
 import { authMiddleware } from './middleware/authMiddleware.js';
 import { auth as authRefreshMV } from './middleware/authRefreshMW.js';
 import { InitWebSocket } from './ws/index.js';
@@ -37,6 +38,13 @@ app.use('/orders', authRefreshMV, orderRouter);
 app.use('/map', authRefreshMV, mapRouter);
 app.use('/region', authRefreshMV, regionRouter);
 app.use('/notifications', authRefreshMV, notificationRoute);
+app.use('/tg-bot', (req, res, next) => {
+  const password = req.headers['x-tg-bot-password'];
+  if (password !== process.env.TG_BOT_PASSWORD) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}, tgBotRouter);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Not Found' });
