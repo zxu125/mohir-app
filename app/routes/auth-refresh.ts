@@ -166,7 +166,6 @@ router.post("/refresh", async (req, res) => {
     const bodyToken = req.body?.refreshToken;
     const cookieToken = req.cookies?.rt;
     const refreshToken = bodyToken || cookieToken;
-
     if (!refreshToken) return res.status(400).json({ message: "refreshToken required" });
 
     let payload;
@@ -219,17 +218,6 @@ router.post("/refresh", async (req, res) => {
             tgUserId: stored.tgUserId,
             issuedAt: now,
             lastUsedAt: now,
-        }
-    });
-
-    await prisma.refreshTokens.create({
-        data: {
-            id: newTid,
-            userId,
-            tokenHash: newHash,
-            deviceId: stored.deviceId,
-            revoked: false,
-            expiresAt: newExpiresAt,
         }
     });
 
