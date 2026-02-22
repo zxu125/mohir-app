@@ -145,7 +145,7 @@ router.post("/login", async (req, res) => {
             httpOnly: true,
             secure: true,    // на https
             sameSite: "none", // раз у тебя тот же домен
-            path: "/auth",
+            path: "/",
             maxAge: REFRESH_TTL_MS,
         });
 

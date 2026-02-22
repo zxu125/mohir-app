@@ -21,18 +21,10 @@ router.get('/all', async (req: any, res) => {
                         region: true,
                         orders: {
                             where: {
-                                OR: [{
-                                    statusId: { notIn: [1, 2] }
-                                },
-                                {
-                                    completedDate: {
-                                        gte: startOfDay,
-                                        lte: endOfDay,
-                                    }
-                                }]
+                                statusId: { notIn: [1, 2] }
                             },
                             include: { location: true, status: true },
-                            orderBy: {completedDate: 'desc' },
+                            orderBy: { completedDate: 'desc' },
                         },
                     }
 
