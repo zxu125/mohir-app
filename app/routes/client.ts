@@ -7,7 +7,6 @@ const router = Router();
 // Create a new client
 router.post('/add', async (req, res) => {
   const { name, email, phone, phone2, regionId, address, deliveryNote, locations, totalAmount } = req.body;
-  console.log('Create client request body:', req.body);
   if (!name || !locations || locations.length == 0 || locations.some((loc: any) => !loc?.latitude || !loc?.longitude)) {
     return res.status(400).json({ error: 'Необходимы имя и локация клиента' });
   }
@@ -90,7 +89,6 @@ router.get('/view', async (req: any, res) => {
 // Update a client by ID
 router.post('/edit', async (req, res) => {
   const { name, email, phone, phone2, regionId, address, deliveryNote } = req.body;
-  console.log('Edit client request body:', req.body);
   try {
     let client: any = await prisma.client.update({
       where: { id: Number(req.body.id) },
@@ -107,7 +105,6 @@ router.post('/edit', async (req, res) => {
     }
     client = await prisma.client.findUnique({ where: { id: client.id }, include: { locations: { include: { location: true } }, region: true } })
     client.location = client.locations[0].location
-    console.log(client);
     if (req.body.stockQuantity) {
       let stock = await prisma.stock.findFirst({
         where: {
@@ -142,7 +139,6 @@ router.post('/edit', async (req, res) => {
 router.get('/list', async (req: any, res) => {
   const params = req.query;
   let fileds = params.flds ? String(params.flds).split(',') : ['id', 'order', 'name', 'email', 'phone', 'phone2', 'location', 'region', 'address', 'deliveryNote'];
-  console.log('Listing clients with params:', params);
   try {
     let clients: any = await prisma.client.findMany({
       where: {
@@ -152,7 +148,15 @@ router.get('/list', async (req: any, res) => {
         AND: [
           params.regionId ? { regionId: Number(params.regionId) } : {},
           req.user.role.id == 1 ? {} : { regionId: { in: req.user.regions.map(e => e.id) } }
-        ]
+        ],
+        OR: params.search
+          ? [
+            { name: { contains: String(params.search), mode: "insensitive" } },
+            { phone: { contains: String(params.search), mode: "insensitive" } },
+            { phone2: { contains: String(params.search), mode: "insensitive" } },
+            { deliveryNote: { contains: String(params.search), mode: "insensitive" } },
+          ]
+          : undefined
       },
       select: {
         id: fileds.includes('id'),

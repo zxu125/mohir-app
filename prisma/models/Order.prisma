@@ -4,6 +4,7 @@ model Order {
     updatedAt     DateTime?   @updatedAt @map("updated_at")
     clientId      Int         @map("client_id")
     orderDate     DateTime    @default(now()) @map("order_date")
+    deliveryDate  DateTime?   @map("delivery_date")
     completedDate DateTime?   @map("completed_date")
     statusId      Int         @default(1) @map("status_id")
     status        OrderStatus @relation(fields: [statusId], references: [id])

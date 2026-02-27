@@ -90,7 +90,7 @@ router.post('/history', async (req, res) => {
 // Create a new order
 router.post('/add', async (req, res) => {
     console.log('add: ', req.body);
-    const { clientId, totalAmount, orderDate, note } = req.body;
+    const { clientId, totalAmount, orderDate, note, deliveryDate } = req.body;
     try {
         const client = await prisma.client.findUnique({
             where: { id: Number(clientId) },
@@ -105,6 +105,7 @@ router.post('/add', async (req, res) => {
                 totalAmount: Number(totalAmount),
                 locationId: location.id,
                 orderDate,
+                deliveryDate,
                 statusId: 5,
                 note,
                 price: Number(totalAmount) * price,
@@ -144,7 +145,7 @@ router.get('/view/:id', async (req, res) => {
 
 // Update an order by ID
 router.post('/edit', async (req, res) => {
-    const { id, totalAmount, orderDate, note, priority } = req.body;
+    const { id, totalAmount, orderDate, note, priority, deliveryDate } = req.body;
     console.log('edit ', req.body);
     try {
         const price = await prisma.product.findUnique({ where: { id: 1 } }).then(p => p?.price || 0)
@@ -153,6 +154,7 @@ router.post('/edit', async (req, res) => {
             data: {
                 totalAmount: Number(totalAmount),
                 orderDate,
+                deliveryDate,
                 note,
                 locationId: req.body.location?.id,
                 // priority: priority.id,
