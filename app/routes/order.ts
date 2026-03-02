@@ -120,7 +120,6 @@ router.post('/add', async (req, res) => {
 
 // Get an order by ID
 router.get('/view/:id', async (req, res) => {
-    console.log(req.cookies)
     try {
         console.log(req.body)
         const price = await prisma.product.findUnique({ where: { id: 1 } }).then(p => p?.price || 0)
@@ -181,9 +180,13 @@ router.post('/delete/:id', async (req, res) => {
 });
 
 router.post('/change-status', async (req, res) => {
+    console.log(req.body)
     const { id, statusId } = req.body;
     try {
-        const order = await OrderController.changeStatus({ id, statusId });
+        const order = await prisma.order.update({
+            where: { id: Number(id) },
+            data: { statusId: Number(statusId) },
+        });
         res.json(order);
     } catch (error) {
         res.status(500).json({ error });
