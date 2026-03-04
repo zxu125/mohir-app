@@ -26,12 +26,21 @@ router.get('/list', async (req, res) => {
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
     const params = req.query;
+    const search = String(params.search)
     try {
         const orders: any = await prisma.order.findMany({
             where: {
                 clientId: params.clientId ? Number(params.clientId) : undefined,
                 statusId: { equals: params.statusId ? Number(params.statusId) : undefined, notIn: [1, 2] },
                 orderDate: params.orderDate ? new Date(String(params.orderDate)) : undefined,
+                client: params.search ? {
+                    OR: [
+                        { name: { contains: search, mode: 'insensitive' } },
+                        { phone: { contains: search, mode: 'insensitive' } },
+                        { phone2: { contains: search, mode: 'insensitive' } },
+                        { deliveryNote: { contains: search, mode: 'insensitive' } },
+                    ]
+                } : undefined
             },
             include: {
                 client: { select: { id: true, name: true, email: true, phone: true, phone2: true } },
